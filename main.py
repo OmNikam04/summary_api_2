@@ -81,6 +81,8 @@ async def get_summary(request: Request, payload: RequestBody):
         )
         output = response_2.choices[0].text.strip()
         output = output.split("\n")
+        output = list(filter(None, output))
+
 
         # Extract question, options, and correct answer
         question = output[0].strip()
