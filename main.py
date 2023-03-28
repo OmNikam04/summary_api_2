@@ -87,10 +87,13 @@ async def get_summary(request: Request, payload: RequestBody):
         # Extract question, options, and correct answer
         question = output[0].strip()
         options = [option.strip() for option in output[1:5]]
-        correct_answer = output[5].strip()
+        correct_answer = output[5].strip().split(":")
+        correct_answer = correct_answer[1].strip()
+        
 
         # Extract explanation
-        explanation = output[6].strip()
+        explanation = output[6].strip().split(":")
+        explanation = explanation[1].strip()
 
         # Convert into a dictionary
         quiz = {
