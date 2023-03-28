@@ -1,9 +1,12 @@
 import requests
 from dotenv import load_dotenv
 import os
+import json
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, ValidationError
+import openai
+import random
 app = FastAPI()
 
 # Set up CORS
@@ -19,6 +22,8 @@ app.add_middleware(
 load_dotenv()
 API_URL = os.getenv("API_URL")
 hug_api_token = os.getenv("HUGGING_FACE_API_KEY")
+open_ai_api_key = os.getenv("OPEN_AI_API_KEY")
+openai.api_key = open_ai_api_key
 
 
 class RequestBody(BaseModel):
@@ -26,7 +31,6 @@ class RequestBody(BaseModel):
 
 
 headers = {"Authorization": f"Bearer {hug_api_token}"}
-
 
 @app.get('/')
 def index():
@@ -41,7 +45,7 @@ async def get_summary(request: Request, payload: RequestBody):
         data = payload.dict()
         text = data["text"]
         text_len = len(text)
-        # text = text.replace("'", "'\'")
+
         # Adjust minL based on the length of the input text
         minL = 10
         if text_len < 100:
@@ -62,7 +66,42 @@ async def get_summary(request: Request, payload: RequestBody):
             },
         }
         response = requests.post(API_URL, headers=headers, json=inputs)
-        return response.json()[0]["summary_text"]
+        summary = response.json()[0]["summary_text"]
+
+        prompt = f"Your expertise as a quiz generator can be valuable to teachers. Given a summary of a session, your role is to generate a multiple choice quiz question with four options. The question should be related to the summary and have a clear correct answer. The output should include the question, the four options, correct answer and explanation. When provided with a summary, generate a quiz question that would be suitable for a classroom setting.And easily distinguish question, options and correct answer with explanation.\nHuman: {summary}\nAI:"
+
+        response_2 = openai.Completion.create(
+            engine="text-davinci-003",
+            prompt=prompt,
+            temperature=0.7,
+            max_tokens=256,
+            top_p=1,
+            frequency_penalty=0,
+            presence_penalty=0
+        )
+        output = response_2.choices[0].text.strip()
+        output = output.split("\n")
+
+        # Extract question, options, and correct answer
+        question = output[0].strip()
+        options = [option.strip() for option in output[1:5]]
+        correct_answer = output[5].strip()
+
+        # Extract explanation
+        explanation = output[6].strip()
+
+        # Convert into a dictionary
+        quiz = {
+            "question": question,
+            "options": options,
+            "correct_answer": correct_answer,
+            "explanation": explanation
+        }
+
+        return {
+            "summary": summary,
+            "quiz": quiz
+        }
 
     except ValidationError as e:
         # Handle validation error in the request body

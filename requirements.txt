@@ -3,3 +3,5 @@ fastapi
 requests
 pydantic
 uvicorn
+openai
+random
